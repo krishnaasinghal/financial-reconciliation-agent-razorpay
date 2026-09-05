@@ -46,8 +46,10 @@ st.markdown("""
         .stButton > button, .stDownloadButton > button { border-radius: 8px; border: 1px solid var(--teal); color: white; background: var(--teal); font-weight: 700; }
         .stButton > button:hover, .stDownloadButton > button:hover { border-color: #05616b; background: #05616b; color: white; }
         [data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-        div[data-testid="stExpander"] { border-color: var(--line); border-radius: 10px; background: #ffffff; }
-        div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary p { color: #17212b !important; font-weight: 700; }
+        div[data-testid="stExpander"] { border-color: var(--line); border-radius: 10px; background: #ffffff; overflow: hidden; }
+        div[data-testid="stExpander"] details summary { background: #e7f3f0 !important; color: #17212b !important; }
+        div[data-testid="stExpander"] details summary:hover { background: #d5ebe6 !important; }
+        div[data-testid="stExpander"] details summary p, div[data-testid="stExpander"] details summary span { color: #17212b !important; font-weight: 700; }
 </style>
 <div class="hero">
     <div>
