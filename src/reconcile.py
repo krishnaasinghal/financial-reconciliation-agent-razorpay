@@ -17,6 +17,15 @@ KB_RULES = {
     "UNMATCHED_BANK_CREDIT": "KB-06: A bank credit with no matching payment is likely an adjustment or stale UTR.",
     "AMOUNT_MISMATCH": "KB-07: Net settlement must equal gross minus fee minus GST, to the paisa.",
 }
+SUGGESTED_ACTIONS = {
+    "MISSING_SETTLEMENT": "Check the T+3 window; escalate to Razorpay ops if still missing.",
+    "FEE_MISMATCH": "Recalculate the fee and file a fee dispute with Razorpay ops.",
+    "PARTIAL_SETTLEMENT": "Check holds, reserves, split releases, and the remaining unreconciled balance.",
+    "DELAYED_SETTLEMENT": "Review settlement timing and escalate if the delayed credit is not explained.",
+    "DUPLICATE_BANK_CREDIT": "Flag for manual reversal before month-end close; do not double-count it.",
+    "UNMATCHED_BANK_CREDIT": "Search adjustments and UTRs, then route the credit to finance review.",
+    "AMOUNT_MISMATCH": "Compare gateway and bank reports, then open an investigation for the difference.",
+}
 
 
 def _cite(anomaly: str, reason: str) -> str:

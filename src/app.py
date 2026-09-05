@@ -8,7 +8,7 @@ import streamlit as st
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agent import explain
-from reconcile import reconcile, summarize
+from reconcile import SUGGESTED_ACTIONS, reconcile, summarize
 from evaluate import _metrics, _truth
 from knowledge_base import load
 
@@ -95,6 +95,7 @@ with tabs[2]:
             st.write(f"Difference: INR {row.difference:,.2f}" if row.difference is not None else "Difference: unavailable")
             st.caption(row.reason)
             st.info(explain(row))
+            st.warning(f"Suggested next action: {SUGGESTED_ACTIONS[row.anomaly_type]}")
             with st.expander("Agent reasoning trace"):
                 for step_number, step in enumerate(anomaly_trace(row), 1):
                     st.write(f"{step_number}. {step}")
