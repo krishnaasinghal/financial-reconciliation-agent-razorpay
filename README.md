@@ -1,6 +1,44 @@
-# AI-Powered Payment Settlement Reconciliation
+# Settlement Control Room - AI Finance Controller (Razorpay AI Buildathon, Track 4)
 
-A synthetic Razorpay-style payment settlement reconciliation system for merchant operations. The data is synthetic and inspired by real-world payment gateway workflows; it does not connect to or claim data from Razorpay proprietary systems.
+Live demo: https://financial-reconciliation-agent-razorpay-ivhezws8zgfhqjrmopvn6x.streamlit.app
+GitHub: https://github.com/krishnaasinghal/financial-reconciliation-agent-razorpay
+
+## What this is
+
+Settlement Control Room is an AI-assisted payment settlement reconciliation system for merchants. It traces a payment from customer order through gateway settlement to bank credit, calculates expected net settlement, detects exceptions, and gives finance teams an auditable review queue using synthetic Razorpay-style data.
+
+## Architecture principle
+
+**The LLM proposes, deterministic code disposes.** All money math, matching, tolerance checks, and anomaly labels are deterministic Python. AI only explains anomalies and cites payment-settlement policy rules; it never invents or calculates financial values.
+
+## Actual evaluation results
+
+Against the generated ground truth, the current Evaluation tab reports:
+
+- Reconciliation accuracy: **70.7%**
+- Anomaly precision: **100%**
+- Anomaly recall: **100%**
+- Anomaly F1: **100%**
+
+The lower overall reconciliation accuracy reflects the stricter status-level comparison across normal, pending, duplicate, and unmatched records; anomaly detection is evaluated separately and is perfect on the generated batch.
+
+## Razorpay test-mode touchpoint
+
+The optional `fetch_real_razorpay_orders.py` integration creates real Razorpay test-mode orders through the live API when configured with test credentials. The current reconciliation batch remains synthetic so it is reproducible and safe to evaluate; no production credentials or proprietary Razorpay data are committed.
+
+## Local run
+
+```bash
+pip install -r requirements.txt
+python src/generate_data.py
+python src/knowledge_base.py
+python src/evaluate.py
+streamlit run src/app.py
+```
+
+## Honest limitations
+
+This is a synthetic-batch prototype validated against held-out ground truth, with a real Razorpay test-mode API touchpoint rather than live financial data. Live settlement webhook ingestion, production authentication, and operational settlement feeds are the natural next steps.
 
 ## Core principle
 

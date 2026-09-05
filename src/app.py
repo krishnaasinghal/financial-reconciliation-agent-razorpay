@@ -43,6 +43,8 @@ with tabs[0]:
     st.bar_chart(pd.Series(summary["by_anomaly"], name="records"))
 with tabs[1]:
     selected = st.multiselect("Status", ["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"], default=["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"])
+    exceptions = rec_df[rec_df["status"] != "MATCHED"]
+    st.download_button("Export exceptions for finance team", exceptions.to_csv(index=False), "settlement_exceptions.csv", "text/csv")
     view = rec_df[rec_df["status"].isin(selected)]
     st.dataframe(view[["payment_id", "settlement_id", "bank_transaction_id", "expected_amount", "actual_amount", "difference", "status", "anomaly_type", "reason"]], use_container_width=True, hide_index=True)
 with tabs[2]:
