@@ -51,6 +51,10 @@ st.markdown("""
         div[data-testid="stExpander"] details summary { background: #e7f3f0 !important; color: #17212b !important; }
         div[data-testid="stExpander"] details summary:hover { background: #d5ebe6 !important; }
         div[data-testid="stExpander"] details summary p, div[data-testid="stExpander"] details summary span { color: #17212b !important; font-weight: 700; }
+        div[data-testid="stRadio"] > div { flex-direction: row; flex-wrap: wrap; gap: 0.45rem; }
+        div[data-testid="stRadio"] label { background: #17313a; border: 1px solid #24444d; border-radius: 8px; padding: 0.35rem 0.7rem; color: #ffffff !important; font-weight: 700; }
+        div[data-testid="stRadio"] label p, div[data-testid="stRadio"] label span { color: #ffffff !important; }
+        div[data-testid="stRadio"] label:has(input:checked) { background: #087f8c; border-color: #075d66; }
 </style>
 <div class="hero">
     <div>
@@ -231,8 +235,8 @@ if "simulator_rows" not in st.session_state:
 simulator_rows = st.session_state.simulator_rows
 simulator_df = pd.DataFrame(simulator_rows)
 display_rec_df = pd.concat([simulator_df, rec_df], ignore_index=True) if not simulator_df.empty else rec_df
-tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation", "Live Integration", "Live Simulator"])
-with tabs[0]:
+active_view = st.radio("Dashboard view", ["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation", "Live Integration", "Live Simulator"], horizontal=True, label_visibility="collapsed")
+if active_view == "Overview":
     with st.expander("How this works", expanded=True):
         st.write("The LLM proposes, deterministic code disposes. Python validates order, payment, settlement, and bank-credit amounts; AI only explains flagged anomalies and cites policy rules.")
     metrics = [
@@ -262,7 +266,7 @@ with tabs[0]:
         "Live Razorpay test-mode orders were used as an API integration touchpoint; reconciliation evaluation uses reproducible synthetic settlement data.",
     ])
     st.download_button("Download executive summary", executive_summary, "settlement_executive_summary.md", "text/markdown")
-with tabs[1]:
+if active_view == "Reconciliation":
     selected = st.multiselect("Status", ["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"], default=["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"])
     exceptions = display_rec_df[display_rec_df["status"] != "MATCHED"]
     st.download_button("Export exceptions for finance team", exceptions.to_csv(index=False), "settlement_exceptions.csv", "text/csv")
@@ -287,7 +291,7 @@ with tabs[1]:
                 f"Difference: **INR {record['difference']:,.2f}**. "
                 f"{record['reason']}"
             )
-with tabs[2]:
+if active_view == "Anomalies":
     anomalies = [row for row in results if row.anomaly_type]
     for row in anomalies[:50]:
         with st.container(border=True):
@@ -301,24 +305,24 @@ with tabs[2]:
             with st.expander("Agent reasoning trace"):
                 for step_number, step in enumerate(anomaly_trace(row), 1):
                     st.write(f"{step_number}. {step}")
-with tabs[3]:
+if active_view == "Data Explorer":
     entity = st.selectbox("Dataset", list(frames))
     st.dataframe(frames[entity], use_container_width=True, hide_index=True)
-with tabs[4]:
+if active_view == "Evaluation":
     report = _metrics(results, _truth())
     cols = st.columns(4)
     for column, key in zip(cols, ["reconciliation_accuracy", "precision", "recall", "f1"]):
         column.metric(key.replace("_", " ").title(), f"{report[key]:.1%}")
     st.dataframe(pd.DataFrame(report["accuracy_by_anomaly_type"].items(), columns=["Anomaly", "Accuracy"]), use_container_width=True, hide_index=True)
     st.caption(f"Policy knowledge base: {len(load())} settlement rules")
-with tabs[5]:
+if active_view == "Live Integration":
     st.subheader("Razorpay test-mode orders")
     if live_orders is None:
         st.info("No real_razorpay_orders.csv found. Run fetch_real_razorpay_orders.py with Razorpay test credentials to create the live API proof.")
     else:
         st.caption("These order IDs were issued by the Razorpay test-mode API. Settlement evaluation remains synthetic and reproducible.")
         st.dataframe(live_orders[["order_id", "amount", "currency", "created_at", "status", "receipt"]], use_container_width=True, hide_index=True)
-with tabs[6]:
+if active_view == "Live Simulator":
     st.subheader("Live Transaction Simulator")
     st.caption("Creates one Razorpay test-mode order, injects an existing settlement scenario, and runs the unchanged reconciliation and explanation paths.")
     counter_col, tally_col = st.columns(2)
