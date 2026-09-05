@@ -12,7 +12,7 @@ from reconcile import SUGGESTED_ACTIONS, reconcile, summarize
 from evaluate import _metrics, _truth
 from knowledge_base import load
 
-st.set_page_config(page_title="Settlement Control Room", page_icon="₹", layout="wide")
+st.set_page_config(page_title="Settlement Control Room | AI Finance Controller", page_icon="💳", layout="wide")
 st.title("Settlement Control Room")
 st.caption("Synthetic Razorpay-style payment settlement data. Deterministic code calculates every amount; AI only explains anomalies.")
 
@@ -53,10 +53,12 @@ rec_df, summary = reconciliation_frame()
 results = reconcile()
 tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation"])
 with tabs[0]:
+    with st.expander("How this works", expanded=True):
+        st.write("The LLM proposes, deterministic code disposes. Python validates order, payment, settlement, and bank-credit amounts; AI only explains flagged anomalies and cites policy rules.")
     metrics = [
-        ("Total Payments", len(frames["payments"])), ("Total Settled Amount", f"INR {frames['settlements']['net_amount'].sum():,.2f}"),
-        ("Matched Transactions", summary["by_status"].get("MATCHED", 0)), ("Pending Transactions", summary["by_status"].get("PENDING", 0)),
-        ("Mismatched Transactions", summary["by_status"].get("MISMATCHED", 0)), ("Anomalies Detected", sum(summary["by_anomaly"].values())),
+        ("💳 Total Payments", len(frames["payments"])), ("💰 Total Settled Amount", f"INR {frames['settlements']['net_amount'].sum():,.2f}"),
+        ("✅ Matched Transactions", summary["by_status"].get("MATCHED", 0)), ("🕒 Pending Transactions", summary["by_status"].get("PENDING", 0)),
+        ("⚠️ Mismatched Transactions", summary["by_status"].get("MISMATCHED", 0)), ("🚨 Anomalies Detected", sum(summary["by_anomaly"].values())),
     ]
     columns = st.columns(3)
     for index, (label, value) in enumerate(metrics):
@@ -67,6 +69,9 @@ with tabs[1]:
     selected = st.multiselect("Status", ["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"], default=["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"])
     exceptions = rec_df[rec_df["status"] != "MATCHED"]
     st.download_button("Export exceptions for finance team", exceptions.to_csv(index=False), "settlement_exceptions.csv", "text/csv")
+    badge_colors = {"MATCHED": "#15803d", "PENDING": "#b45309", "MISMATCHED": "#b91c1c", "DUPLICATE": "#b91c1c", "UNMATCHED": "#4b5563"}
+    badges = " ".join(f'<span style="background:{badge_colors[status]};color:white;padding:4px 9px;border-radius:999px;font-size:0.8rem">{status}</span>' for status in selected)
+    st.markdown(badges, unsafe_allow_html=True)
     view = rec_df[rec_df["status"].isin(selected)]
     st.dataframe(view[["payment_id", "settlement_id", "bank_transaction_id", "expected_amount", "actual_amount", "difference", "status", "anomaly_type", "reason"]], use_container_width=True, hide_index=True)
     st.subheader("Ask the agent")
