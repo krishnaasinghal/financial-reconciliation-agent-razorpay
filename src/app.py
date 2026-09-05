@@ -13,8 +13,42 @@ from evaluate import _metrics, _truth
 from knowledge_base import load
 
 st.set_page_config(page_title="Settlement Control Room | AI Finance Controller", page_icon="💳", layout="wide")
-st.title("Settlement Control Room")
-st.caption("Synthetic Razorpay-style payment settlement data. Deterministic code calculates every amount; AI only explains anomalies.")
+st.markdown("""
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+        :root { --ink: #17212b; --muted: #687782; --teal: #087f8c; --mint: #dff4ef; --coral: #e56b54; --line: #dfe7e8; --paper: #f7faf9; }
+        .stApp { background: var(--paper); color: var(--ink); }
+        [data-testid="stHeader"] { background: rgba(247, 250, 249, 0.88); }
+        [data-testid="stSidebar"] { background: #eef6f4; border-right: 1px solid var(--line); }
+        .block-container { max-width: 1420px; padding-top: 2.2rem; padding-bottom: 3rem; }
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; color: var(--ink); letter-spacing: 0; }
+        p, label, .stMarkdown, .stCaption { font-family: 'DM Sans', sans-serif; }
+        .hero { display: flex; justify-content: space-between; align-items: end; gap: 2rem; padding: 1.6rem 1.8rem; margin-bottom: 1.4rem; background: #ffffff; border: 1px solid var(--line); border-left: 6px solid var(--teal); border-radius: 12px; box-shadow: 0 8px 24px rgba(23, 33, 43, 0.05); }
+        .hero-kicker { color: var(--teal); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .hero-title { margin: 0.3rem 0 0; font-family: 'Space Grotesk', sans-serif; font-size: 2.25rem; font-weight: 700; line-height: 1.05; }
+        .hero-copy { max-width: 690px; margin: 0.7rem 0 0; color: var(--muted); font-size: 0.98rem; line-height: 1.55; }
+        .hero-mark { display: grid; place-items: center; width: 68px; height: 68px; flex: 0 0 68px; background: var(--mint); border: 1px solid #b9e4da; border-radius: 16px; color: var(--teal); font-size: 2rem; }
+        [data-testid="stMetric"] { background: #ffffff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; box-shadow: 0 5px 16px rgba(23, 33, 43, 0.04); }
+        [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 600; }
+        [data-testid="stMetricValue"] { color: var(--ink); font-family: 'Space Grotesk', sans-serif; }
+        div[data-baseweb="tab-list"] { gap: 0.35rem; border-bottom: 1px solid var(--line); }
+        button[data-baseweb="tab"] { color: var(--muted); font-weight: 600; }
+        button[data-baseweb="tab"][aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
+        .section-kicker { color: var(--teal); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1rem; }
+        .stButton > button, .stDownloadButton > button { border-radius: 8px; border: 1px solid var(--teal); color: white; background: var(--teal); font-weight: 700; }
+        .stButton > button:hover, .stDownloadButton > button:hover { border-color: #05616b; background: #05616b; color: white; }
+        [data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+        div[data-testid="stExpander"] { border-color: var(--line); border-radius: 10px; background: #ffffff; }
+</style>
+<div class="hero">
+    <div>
+        <div class="hero-kicker">AI Finance Controller · Track 4</div>
+        <div class="hero-title">Settlement Control Room</div>
+        <p class="hero-copy">A focused view of payment settlement health, exceptions, and the next action for finance. Every amount is verified by deterministic Python; AI explains the evidence.</p>
+    </div>
+    <div class="hero-mark">₹</div>
+</div>
+""", unsafe_allow_html=True)
 
 SUGGESTED_ACTIONS = {
     "MISSING_SETTLEMENT": "Check the T+3 window; escalate to Razorpay ops if still missing.",
