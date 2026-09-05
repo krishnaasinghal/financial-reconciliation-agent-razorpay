@@ -8,13 +8,23 @@ import streamlit as st
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agent import explain
-from reconcile import SUGGESTED_ACTIONS, reconcile, summarize
+from reconcile import reconcile, summarize
 from evaluate import _metrics, _truth
 from knowledge_base import load
 
 st.set_page_config(page_title="Settlement Control Room | AI Finance Controller", page_icon="💳", layout="wide")
 st.title("Settlement Control Room")
 st.caption("Synthetic Razorpay-style payment settlement data. Deterministic code calculates every amount; AI only explains anomalies.")
+
+SUGGESTED_ACTIONS = {
+    "MISSING_SETTLEMENT": "Check the T+3 window; escalate to Razorpay ops if still missing.",
+    "FEE_MISMATCH": "Recalculate the fee and file a fee dispute with Razorpay ops.",
+    "PARTIAL_SETTLEMENT": "Check holds, reserves, split releases, and the remaining unreconciled balance.",
+    "DELAYED_SETTLEMENT": "Review settlement timing and escalate if the delayed credit is not explained.",
+    "DUPLICATE_BANK_CREDIT": "Flag for manual reversal before month-end close; do not double-count it.",
+    "UNMATCHED_BANK_CREDIT": "Search adjustments and UTRs, then route the credit to finance review.",
+    "AMOUNT_MISMATCH": "Compare gateway and bank reports, then open an investigation for the difference.",
+}
 
 
 def anomaly_trace(row) -> list[str]:
