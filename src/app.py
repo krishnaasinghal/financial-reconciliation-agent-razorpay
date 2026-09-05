@@ -65,6 +65,23 @@ with tabs[0]:
         columns[index % 3].metric(label, value)
     st.subheader("Anomaly distribution")
     st.bar_chart(pd.Series(summary["by_anomaly"], name="records"))
+    evaluation = _metrics(results, _truth())
+    top_anomalies = sorted(summary["by_anomaly"].items(), key=lambda item: item[1], reverse=True)[:3]
+    executive_summary = "\n".join([
+        "# Settlement Control Room - Executive Summary",
+        "",
+        f"Total reconciliation transactions: {summary['total_results']}",
+        f"Match rate: {summary['by_status'].get('MATCHED', 0) / max(1, summary['total_results']):.1%}",
+        f"Precision: {evaluation['precision']:.1%}",
+        f"Recall: {evaluation['recall']:.1%}",
+        f"F1: {evaluation['f1']:.1%}",
+        "",
+        "Top anomaly types:",
+        *[f"- {name}: {count}" for name, count in top_anomalies],
+        "",
+        "Live Razorpay test-mode orders were used as an API integration touchpoint; reconciliation evaluation uses reproducible synthetic settlement data.",
+    ])
+    st.download_button("Download executive summary", executive_summary, "settlement_executive_summary.md", "text/markdown")
 with tabs[1]:
     selected = st.multiselect("Status", ["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"], default=["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"])
     exceptions = rec_df[rec_df["status"] != "MATCHED"]
