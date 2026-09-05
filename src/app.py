@@ -1,15 +1,22 @@
 """Streamlit dashboard for Razorpay-style payment settlement reconciliation."""
 from __future__ import annotations
+import csv
 import os
+import random
 import sys
+import tempfile
+import time
+import uuid
 from pathlib import Path
 import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agent import explain
+import reconcile as reconciliation_module
 from reconcile import reconcile, summarize
 from evaluate import _metrics, _truth
+from generate_data import SCENARIOS, build as build_synthetic_world
 from knowledge_base import load
 
 st.set_page_config(page_title="Settlement Control Room | AI Finance Controller", page_icon="💳", layout="wide")
@@ -84,6 +91,116 @@ def anomaly_trace(row) -> list[str]:
     trace.append(f"Applied the cited policy rule and flagged {row.anomaly_type}.")
     return trace
 
+
+def _create_test_order(amount_rupees: float) -> tuple[str, str, float]:
+    """Create one live test order, falling back to a previously issued ID."""
+    try:
+        import razorpay
+
+        key_id = os.environ.get("RAZORPAY_KEY_ID")
+        key_secret = os.environ.get("RAZORPAY_KEY_SECRET")
+        if not key_id or not key_secret:
+            raise RuntimeError("Razorpay test credentials are not configured")
+        client = razorpay.Client(auth=(key_id, key_secret))
+        order = client.order.create({
+            "amount": int(round(amount_rupees * 100)),
+            "currency": "INR",
+            "receipt": f"live_sim_{uuid.uuid4().hex[:10]}",
+            "notes": {"source": "settlement-control-room-live-simulator"},
+        })
+        return order["id"], "real Razorpay test-mode order", amount_rupees
+    except Exception as error:
+        fallback_path = Path(__file__).resolve().parents[1] / "real_razorpay_orders.csv"
+        if not fallback_path.exists():
+            raise RuntimeError(f"Razorpay API failed and no fallback order file exists: {error}") from error
+        fallback = pd.read_csv(fallback_path).iloc[0]
+        return str(fallback["order_id"]), "using a previously created live order - network hiccup", float(fallback["amount"])
+
+
+def _scale(value: str | float, ratio: float) -> float:
+    return round(float(value) * ratio, 2)
+
+
+def _simulation_world(order_id: str, amount: float, scenario: str) -> dict[str, list[dict]]:
+    """Adapt one existing generator scenario to the live order amount and ID."""
+    world = build_synthetic_world()
+    index = next(i for i, row in enumerate(world["truth"]) if row["expected_status"] == scenario)
+    template_order = world["orders"][index]
+    template_payment = world["payments"][index]
+    template_amount = float(template_order["order_amount"])
+    ratio = amount / template_amount
+    payment_id = f"sim_pay_{uuid.uuid4().hex[:10]}"
+    settlement_id = f"sim_stl_{uuid.uuid4().hex[:10]}"
+    bank_prefix = f"sim_bnk_{uuid.uuid4().hex[:8]}"
+    order = dict(template_order)
+    order.update({"order_id": order_id, "order_amount": amount})
+    payment = dict(template_payment)
+    payment.update({"payment_id": payment_id, "order_id": order_id, "amount": amount})
+    settlements = []
+    for row in world["settlements"]:
+        if row["payment_id"] != template_payment["payment_id"]:
+            continue
+        settlement = dict(row)
+        settlement.update({"settlement_id": settlement_id, "payment_id": payment_id, "gross_amount": _scale(row["gross_amount"], ratio), "gateway_fee": _scale(row["gateway_fee"], ratio), "tax_on_fee": _scale(row["tax_on_fee"], ratio), "net_amount": _scale(row["net_amount"], ratio)})
+        settlements.append(settlement)
+    credits = []
+    for credit in world["credits"]:
+        if credit["settlement_id"] == world["truth"][index]["settlement_id"] or (scenario == "UNMATCHED_BANK_CREDIT" and credit["bank_transaction_id"] == world["truth"][index]["bank_transaction_id"]):
+            bank_credit = dict(credit)
+            bank_credit.update({"bank_transaction_id": f"{bank_prefix}_{len(credits)}", "settlement_id": settlement_id if scenario != "UNMATCHED_BANK_CREDIT" else f"sim_unknown_{uuid.uuid4().hex[:6]}", "credited_amount": _scale(credit["credited_amount"], ratio)})
+            credits.append(bank_credit)
+    if scenario == "DUPLICATE_BANK_CREDIT" and len(credits) > 1:
+        credits = credits[:2]
+    return {"orders": [order], "payments": [payment], "settlements": settlements, "credits": credits}
+
+
+def _write_simulation_files(root: Path, world: dict[str, list[dict]]) -> None:
+    fields = {
+        "merchant_orders.csv": ["order_id", "merchant_id", "customer_id", "order_amount", "currency", "order_date", "order_status"],
+        "payments.csv": ["payment_id", "order_id", "merchant_id", "amount", "payment_method", "payment_status", "created_at"],
+        "settlements.csv": ["settlement_id", "payment_id", "merchant_id", "gross_amount", "gateway_fee", "tax_on_fee", "net_amount", "settlement_date", "settlement_status"],
+        "bank_credits.csv": ["bank_transaction_id", "settlement_id", "merchant_id", "credited_amount", "credit_date", "bank_reference"],
+    }
+    world_keys = {"merchant_orders.csv": "orders", "payments.csv": "payments", "settlements.csv": "settlements", "bank_credits.csv": "credits"}
+    for filename, columns in fields.items():
+        with (root / filename).open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(world[world_keys[filename]])
+
+
+def run_live_simulation(amount: float, scenario: str) -> tuple[object, str, str]:
+    order_id, source, effective_amount = _create_test_order(amount)
+    world = _simulation_world(order_id, effective_amount, scenario)
+    with tempfile.TemporaryDirectory(prefix="settlement_sim_") as directory:
+        root = Path(directory)
+        _write_simulation_files(root, world)
+        previous_data_dir = reconciliation_module.DATA_DIR
+        reconciliation_module.DATA_DIR = root
+        try:
+            simulated_results = reconcile()
+        finally:
+            reconciliation_module.DATA_DIR = previous_data_dir
+    payment_id = world["payments"][0]["payment_id"]
+    candidates = [row for row in simulated_results if row.payment_id == payment_id or row.anomaly_type == "UNMATCHED_BANK_CREDIT"]
+    result = next((row for row in candidates if row.anomaly_type == scenario), candidates[0])
+    return result, order_id, source
+
+
+def reconcile_simulation_world(world: dict[str, list[dict]]) -> object:
+    with tempfile.TemporaryDirectory(prefix="settlement_sim_") as directory:
+        root = Path(directory)
+        _write_simulation_files(root, world)
+        previous_data_dir = reconciliation_module.DATA_DIR
+        reconciliation_module.DATA_DIR = root
+        try:
+            simulated_results = reconcile()
+        finally:
+            reconciliation_module.DATA_DIR = previous_data_dir
+    payment_id = world["payments"][0]["payment_id"]
+    candidates = [row for row in simulated_results if row.payment_id == payment_id or row.anomaly_type == "UNMATCHED_BANK_CREDIT"]
+    return next((row for row in candidates if row.anomaly_type == scenario), candidates[0])
+
 @st.cache_data
 def load_frames():
     root = Path(__file__).resolve().parents[1] / "data"
@@ -108,14 +225,19 @@ frames = load_frames()
 rec_df, summary = reconciliation_frame()
 results = reconcile()
 live_orders = load_live_orders()
-tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation", "Live Integration"])
+if "simulator_rows" not in st.session_state:
+    st.session_state.simulator_rows = []
+simulator_rows = st.session_state.simulator_rows
+simulator_df = pd.DataFrame(simulator_rows)
+display_rec_df = pd.concat([simulator_df, rec_df], ignore_index=True) if not simulator_df.empty else rec_df
+tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation", "Live Integration", "Live Simulator"])
 with tabs[0]:
     with st.expander("How this works", expanded=True):
         st.write("The LLM proposes, deterministic code disposes. Python validates order, payment, settlement, and bank-credit amounts; AI only explains flagged anomalies and cites policy rules.")
     metrics = [
-        ("💳 Total Payments", len(frames["payments"])), ("💰 Total Settled Amount", f"INR {frames['settlements']['net_amount'].sum():,.2f}"),
-        ("✅ Matched Transactions", summary["by_status"].get("MATCHED", 0)), ("🕒 Pending Transactions", summary["by_status"].get("PENDING", 0)),
-        ("⚠️ Mismatched Transactions", summary["by_status"].get("MISMATCHED", 0)), ("🚨 Anomalies Detected", sum(summary["by_anomaly"].values())),
+        ("💳 Total Payments", len(frames["payments"]) + len(simulator_rows)), ("💰 Total Settled Amount", f"INR {frames['settlements']['net_amount'].sum() + sum(row.get('actual_amount') or 0 for row in simulator_rows):,.2f}"),
+        ("✅ Matched Transactions", summary["by_status"].get("MATCHED", 0) + sum(row.get("status") == "MATCHED" for row in simulator_rows)), ("🕒 Pending Transactions", summary["by_status"].get("PENDING", 0) + sum(row.get("status") == "PENDING" for row in simulator_rows)),
+        ("⚠️ Mismatched Transactions", summary["by_status"].get("MISMATCHED", 0) + sum(row.get("status") == "MISMATCHED" for row in simulator_rows)), ("🚨 Anomalies Detected", sum(summary["by_anomaly"].values()) + sum(bool(row.get("anomaly_type")) for row in simulator_rows)),
     ]
     columns = st.columns(3)
     for index, (label, value) in enumerate(metrics):
@@ -141,17 +263,17 @@ with tabs[0]:
     st.download_button("Download executive summary", executive_summary, "settlement_executive_summary.md", "text/markdown")
 with tabs[1]:
     selected = st.multiselect("Status", ["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"], default=["MATCHED", "PENDING", "MISMATCHED", "UNMATCHED", "DUPLICATE"])
-    exceptions = rec_df[rec_df["status"] != "MATCHED"]
+    exceptions = display_rec_df[display_rec_df["status"] != "MATCHED"]
     st.download_button("Export exceptions for finance team", exceptions.to_csv(index=False), "settlement_exceptions.csv", "text/csv")
     badge_colors = {"MATCHED": "#15803d", "PENDING": "#b45309", "MISMATCHED": "#b91c1c", "DUPLICATE": "#b91c1c", "UNMATCHED": "#4b5563"}
     badges = " ".join(f'<span style="background:{badge_colors[status]};color:white;padding:4px 9px;border-radius:999px;font-size:0.8rem">{status}</span>' for status in selected)
     st.markdown(badges, unsafe_allow_html=True)
-    view = rec_df[rec_df["status"].isin(selected)]
+    view = display_rec_df[display_rec_df["status"].isin(selected)]
     st.dataframe(view[["payment_id", "settlement_id", "bank_transaction_id", "expected_amount", "actual_amount", "difference", "status", "anomaly_type", "reason"]], use_container_width=True, hide_index=True)
     st.subheader("Ask the agent")
     payment_query = st.text_input("Enter a payment ID", placeholder="pay_001002")
     if payment_query:
-        matches = rec_df[rec_df["payment_id"].astype(str).str.lower() == payment_query.strip().lower()]
+        matches = display_rec_df[display_rec_df["payment_id"].astype(str).str.lower() == payment_query.strip().lower()]
         if matches.empty:
             st.warning(f"I could not find payment `{payment_query.strip()}` in this reconciliation batch.")
         else:
@@ -195,3 +317,41 @@ with tabs[5]:
     else:
         st.caption("These order IDs were issued by the Razorpay test-mode API. Settlement evaluation remains synthetic and reproducible.")
         st.dataframe(live_orders[["order_id", "amount", "currency", "created_at", "status", "receipt"]], use_container_width=True, hide_index=True)
+with tabs[6]:
+    st.subheader("Live Transaction Simulator")
+    st.caption("Creates one Razorpay test-mode order, injects an existing settlement scenario, and runs the unchanged reconciliation and explanation paths.")
+    counter_col, tally_col = st.columns(2)
+    counter_col.metric("Simulator session", len(simulator_rows))
+    tally_col.caption("Separate from the validated 150-transaction Evaluation batch.")
+    if st.button("Create Live Transaction", type="primary"):
+        requested_amount = round(random.uniform(500, 15000), 2)
+        scenario = random.choice(SCENARIOS)
+        with st.spinner("Step 1/4 - Creating one Razorpay test-mode order..."):
+            order_id, source, effective_amount = _create_test_order(requested_amount)
+            time.sleep(0.6)
+        st.success(f"Step 1: Real Razorpay order created: `{order_id}` (amount: INR {effective_amount:,.2f})")
+        if source != "real Razorpay test-mode order":
+            st.caption(f"{source}")
+
+        with st.spinner("Step 2/4 - Generating settlement and bank credit..."):
+            world = _simulation_world(order_id, effective_amount, scenario)
+            time.sleep(0.6)
+        settlement_text = "no settlement generated" if not world["settlements"] else ", ".join(f"net INR {row['net_amount']:,.2f}" for row in world["settlements"])
+        credit_text = "no bank credit generated" if not world["credits"] else ", ".join(f"INR {row['credited_amount']:,.2f}" for row in world["credits"])
+        st.info(f"Step 2: Scenario `{scenario}` · settlement: {settlement_text} · bank credit: {credit_text}")
+
+        with st.spinner("Step 3/4 - Running reconciliation engine..."):
+            result = reconcile_simulation_world(world)
+            time.sleep(0.6)
+        st.write(f"Step 3: Reconciliation result: **{result.status}**" + (f" · `{result.anomaly_type}`" if result.anomaly_type else ""))
+        if result.anomaly_type:
+            st.info(f"Step 4: {explain(result)}")
+        else:
+            st.success("Step 4: No anomaly detected; the payment, settlement, and bank credit agree.")
+
+        simulator_row = result.__dict__.copy()
+        simulator_row["simulation_scenario"] = scenario
+        simulator_row["order_id"] = order_id
+        simulator_row["source"] = source
+        st.session_state.simulator_rows.insert(0, simulator_row)
+        st.success("Step 5: Added to the top of the Reconciliation table. Overview totals update on the next app rerun.")
