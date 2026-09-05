@@ -16,6 +16,28 @@ st.set_page_config(page_title="Settlement Control Room", page_icon="₹", layout
 st.title("Settlement Control Room")
 st.caption("Synthetic Razorpay-style payment settlement data. Deterministic code calculates every amount; AI only explains anomalies.")
 
+
+def anomaly_trace(row) -> list[str]:
+    """Describe the deterministic branches that produced this result."""
+    trace = []
+    if row.payment_id:
+        trace.append("Checked the captured payment against its merchant order amount.")
+        if row.status == "PENDING" and row.anomaly_type == "MISSING_SETTLEMENT":
+            trace.append("Checked for a linked settlement and bank credit; one was missing.")
+        else:
+            trace.append("Calculated expected net as gross amount minus gateway fee and tax on fee.")
+            if row.anomaly_type == "DUPLICATE_BANK_CREDIT":
+                trace.append("Checked settlement references and found more than one bank credit.")
+            elif row.anomaly_type == "DELAYED_SETTLEMENT":
+                trace.append("Compared settlement date with payment creation date and found a late settlement.")
+            elif row.actual_amount is not None:
+                trace.append("Compared expected net with the actual bank credit and found a difference.")
+    else:
+        trace.append("Inspected the bank credit for a matching payment settlement.")
+        trace.append("No matching payment settlement was found.")
+    trace.append(f"Applied the cited policy rule and flagged {row.anomaly_type}.")
+    return trace
+
 @st.cache_data
 def load_frames():
     root = Path(__file__).resolve().parents[1] / "data"
@@ -57,6 +79,9 @@ with tabs[2]:
             st.write(f"Difference: INR {row.difference:,.2f}" if row.difference is not None else "Difference: unavailable")
             st.caption(row.reason)
             st.info(explain(row))
+            with st.expander("Agent reasoning trace"):
+                for step_number, step in enumerate(anomaly_trace(row), 1):
+                    st.write(f"{step_number}. {step}")
 with tabs[3]:
     entity = st.selectbox("Dataset", list(frames))
     st.dataframe(frames[entity], use_container_width=True, hide_index=True)
