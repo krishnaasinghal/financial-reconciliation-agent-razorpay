@@ -54,9 +54,7 @@ st.markdown("""
 </style>
 <div class="hero">
     <div>
-        <div class="hero-kicker">AI Finance Controller · Track 4</div>
         <div class="hero-title">Settlement Control Room</div>
-        <p class="hero-copy">A focused view of payment settlement health, exceptions, and the next action for finance. Every amount is verified by deterministic Python; AI explains the evidence.</p>
     </div>
     <div class="hero-mark">₹</div>
 </div>
