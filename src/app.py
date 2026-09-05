@@ -48,10 +48,21 @@ def reconciliation_frame():
     results = reconcile()
     return pd.DataFrame([row.__dict__ for row in results]), summarize(results)
 
+
+@st.cache_data
+def load_live_orders():
+    path = Path(__file__).resolve().parents[1] / "real_razorpay_orders.csv"
+    if not path.exists():
+        return None
+    live_orders = pd.read_csv(path)
+    live_orders["created_at"] = pd.to_datetime(live_orders["created_at"], unit="s", errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
+    return live_orders
+
 frames = load_frames()
 rec_df, summary = reconciliation_frame()
 results = reconcile()
-tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation"])
+live_orders = load_live_orders()
+tabs = st.tabs(["Overview", "Reconciliation", "Anomalies", "Data Explorer", "Evaluation", "Live Integration"])
 with tabs[0]:
     with st.expander("How this works", expanded=True):
         st.write("The LLM proposes, deterministic code disposes. Python validates order, payment, settlement, and bank-credit amounts; AI only explains flagged anomalies and cites policy rules.")
@@ -131,3 +142,10 @@ with tabs[4]:
         column.metric(key.replace("_", " ").title(), f"{report[key]:.1%}")
     st.dataframe(pd.DataFrame(report["accuracy_by_anomaly_type"].items(), columns=["Anomaly", "Accuracy"]), use_container_width=True, hide_index=True)
     st.caption(f"Policy knowledge base: {len(load())} settlement rules")
+with tabs[5]:
+    st.subheader("Razorpay test-mode orders")
+    if live_orders is None:
+        st.info("No real_razorpay_orders.csv found. Run fetch_real_razorpay_orders.py with Razorpay test credentials to create the live API proof.")
+    else:
+        st.caption("These order IDs were issued by the Razorpay test-mode API. Settlement evaluation remains synthetic and reproducible.")
+        st.dataframe(live_orders[["order_id", "amount", "currency", "created_at", "status", "receipt"]], use_container_width=True, hide_index=True)
