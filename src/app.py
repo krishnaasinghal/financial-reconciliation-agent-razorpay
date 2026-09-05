@@ -38,11 +38,11 @@ st.markdown("""
         [data-testid="stMetric"] { background: #ffffff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; box-shadow: 0 5px 16px rgba(23, 33, 43, 0.04); }
         [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 600; }
         [data-testid="stMetricValue"] { color: var(--ink); font-family: 'Space Grotesk', sans-serif; }
-        div[data-baseweb="tab-list"] { gap: 0.35rem; border-bottom: 1px solid var(--line); }
-        [data-testid="stTabs"] [data-baseweb="tab-list"] button, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"] { color: #17212b !important; -webkit-text-fill-color: #17212b !important; font-weight: 700; opacity: 1 !important; background: transparent; }
-        [data-testid="stTabs"] [data-baseweb="tab-list"] button *, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"] * { color: #17212b !important; -webkit-text-fill-color: #17212b !important; opacity: 1 !important; }
-        [data-testid="stTabs"] [data-baseweb="tab-list"] button[aria-selected="true"], [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"][aria-selected="true"] { color: #087f8c !important; -webkit-text-fill-color: #087f8c !important; border-bottom: 3px solid #087f8c; }
-        [data-testid="stTabs"] [data-baseweb="tab-list"] button[aria-selected="true"] *, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"][aria-selected="true"] * { color: #087f8c !important; -webkit-text-fill-color: #087f8c !important; }
+        div[data-baseweb="tab-list"] { gap: 0.35rem; padding: 0.45rem 0.55rem; border: 1px solid #24444d; border-radius: 10px; background: #17313a; }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] button, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"] { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; font-weight: 700; opacity: 1 !important; background: transparent; }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] button *, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"] * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; opacity: 1 !important; }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] button[aria-selected="true"], [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"][aria-selected="true"] { color: #9ee8d9 !important; -webkit-text-fill-color: #9ee8d9 !important; border-bottom: 3px solid #9ee8d9; }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] button[aria-selected="true"] *, [data-testid="stTabs"] [data-baseweb="tab-list"] [role="tab"][aria-selected="true"] * { color: #9ee8d9 !important; -webkit-text-fill-color: #9ee8d9 !important; }
         .section-kicker { color: var(--teal); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1rem; }
         .stButton > button, .stDownloadButton > button { border-radius: 8px; border: 1px solid var(--teal); color: white; background: var(--teal); font-weight: 700; }
         .stButton > button:hover, .stDownloadButton > button:hover { border-color: #05616b; background: #05616b; color: white; }
