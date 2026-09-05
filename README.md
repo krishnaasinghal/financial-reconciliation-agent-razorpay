@@ -1,161 +1,798 @@
-# AI Reconciliation & Categorization Agent
+<div align="center">
+
+# 🤖 AI-Powered Financial Reconciliation Agent
+
+### Intelligent transaction categorization. Deterministic financial reconciliation. Fully auditable decisions.
+
+<br/>
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge\&logo=python)
+![AI](https://img.shields.io/badge/AI-LLM%20Powered-purple?style=for-the-badge)
+![RAG](https://img.shields.io/badge/RAG-Knowledge%20Grounded-orange?style=for-the-badge)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-red?style=for-the-badge\&logo=streamlit)
+![License](https://img.shields.io/badge/Status-Prototype-success?style=for-the-badge)
+
+<br/>
+
+> ### **The LLM proposes. Deterministic code decides.**
+
+**An AI-assisted system for categorizing messy financial transactions, reconciling payments and settlements, detecting mismatches, and generating an auditable financial trail.**
 
 ![Dashboard demo](assets/demo.gif)
 
-A small, runnable AI system for the messy reality of consumer-brand finance:
-take the raw exports a brand actually has — a bank feed, Shopify / Amazon /
-Stripe payouts, a QuickBooks-style P&L export, a payroll register — **categorize
-every transaction, reconcile each deposit to the payout that produced it, and
-produce an auditable income statement.**
-
-It is built around one opinion:
-
-> **The LLM proposes; deterministic code disposes.**
-> The model only makes *judgments* (what category is this transaction?).
-> Every *number* — netting fees, matching deposits, summing the P&L — is plain,
-> auditable Python. A mis-categorization is a labelling error the evaluation
-> catches; a hallucinated number silently corrupts the books. So numbers never
-> go near the model.
-
-This is a case-study project, not a product. Its goal is to show how I'd
-approach AI on top of real, messy financial data — including the part most demos
-skip: **measuring whether the output is actually correct.**
+</div>
 
 ---
 
-## Quickstart
+# 🎯 The Problem
+
+Financial reconciliation looks simple on paper.
+
+```text
+Expected Payment  →  ₹10,000
+
+Actual Settlement →  ₹9,750
+
+Difference        →  ❓ Why?
+```
+
+But real financial data is messy.
+
+A business may have:
+
+* 🏦 Bank statements with cryptic transaction descriptions
+* 🛒 Order or merchant records
+* 💳 Payment gateway settlements
+* 💰 Processing fees
+* ⏳ Delayed settlements
+* 🔄 Partial payments
+* ⚠️ Duplicate transactions
+* 📉 Refunds and deductions
+* 📄 Different CSV formats from different platforms
+
+The difficult part isn't just finding that two numbers don't match.
+
+The real challenge is answering:
+
+> **What happened, why did it happen, and can we trust the answer?**
+
+This project solves that problem using a combination of **AI reasoning + deterministic financial logic**.
+
+---
+
+# 🧠 The Core Idea
+
+AI is useful when a system needs to **understand messy information**.
+
+AI is dangerous when it is allowed to **invent financial numbers**.
+
+So this project separates the two.
+
+```text
+                    ┌──────────────────────┐
+                    │     Messy Data       │
+                    │                      │
+                    │ FACEBK *7H2K9        │
+                    │ AMZN MKTP US         │
+                    │ Settlement #2381     │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                  ┌────────────────────────┐
+                  │       AI + RAG         │
+                  │                        │
+                  │ • Understand memo      │
+                  │ • Retrieve policy      │
+                  │ • Suggest category     │
+                  └───────────┬────────────┘
+                              │
+                              ▼
+                  ┌────────────────────────┐
+                  │ Deterministic Engine   │
+                  │                        │
+                  │ • Match transactions   │
+                  │ • Calculate fees       │
+                  │ • Verify amounts       │
+                  │ • Detect mismatches    │
+                  └───────────┬────────────┘
+                              │
+                              ▼
+                  ┌────────────────────────┐
+                  │   Auditable Results    │
+                  │                        │
+                  │ ✓ Matched              │
+                  │ ⚠ Review Required      │
+                  │ ✗ Mismatch             │
+                  └────────────────────────┘
+```
+
+### The rule is simple:
+
+> **The AI can suggest. The code verifies.**
+
+The LLM never performs critical financial arithmetic.
+
+Every important number is calculated using deterministic Python logic.
+
+This makes the system:
+
+* 🔍 **Auditable**
+* 🔁 **Reproducible**
+* 🧮 **Mathematically reliable**
+* 🤖 **AI-assisted, not AI-dependent**
+
+The original architecture explicitly separates LLM judgment from deterministic reconciliation, with the model used for interpretation while matching and numerical operations remain reproducible.
+
+---
+
+# ⚡ What It Does
+
+The system processes messy financial records and produces structured, explainable results.
+
+```text
+INPUT
+│
+├── Bank Transactions
+├── Merchant Orders
+├── Payment Settlements
+├── Payout Reports
+└── Accounting Data
+        │
+        ▼
+AI CATEGORIZATION
+│
+├── Understand transaction descriptions
+├── Retrieve relevant financial rules
+└── Assign categories with confidence
+        │
+        ▼
+DETERMINISTIC RECONCILIATION
+│
+├── Match payments ↔ settlements
+├── Calculate expected fees
+├── Verify net amounts
+├── Handle settlement delays
+└── Detect mismatches
+        │
+        ▼
+OUTPUT
+│
+├── ✅ Matched Transactions
+├── ⚠️ Needs Review
+├── ❌ Unmatched Transactions
+├── 📊 Financial Summary
+└── 🔎 Complete Audit Trail
+```
+
+---
+
+# 🏦 Razorpay Settlement Use Case
+
+The architecture can be applied directly to payment gateway reconciliation.
+
+For example:
+
+```text
+MERCHANT EXPECTATION
+
+Order ID: ORD_1023
+Gross Amount: ₹10,000
+
+
+            │
+            │ Payment Gateway
+            ▼
+
+
+SETTLEMENT REPORT
+
+Gross Amount: ₹10,000
+Gateway Fee:    ₹200
+Tax / Charges:   ₹50
+
+Expected Settlement: ₹9,750
+
+
+            │
+            ▼
+
+
+BANK ACCOUNT
+
+Amount Received: ₹9,750
+
+                ✅ MATCHED
+```
+
+But real-world cases may look like this:
+
+```text
+Order Amount         ₹10,000
+Expected Settlement   ₹9,750
+Actual Settlement     ₹8,750
+
+Difference            ₹1,000
+```
+
+Instead of simply reporting:
+
+> ❌ Amount mismatch
+
+The system can classify and investigate the difference:
+
+```text
+⚠ PARTIAL SETTLEMENT
+
+Expected: ₹9,750
+Received: ₹8,750
+
+Possible reason:
+→ Reserve amount withheld
+
+Status:
+→ Requires verification
+```
+
+The goal is not just **matching numbers**.
+
+The goal is to make reconciliation **explainable**.
+
+---
+
+# 🧱 Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        DATA SOURCES                         │
+│                                                             │
+│  Bank Feed │ Orders │ Payouts │ Settlements │ Accounting    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       DATA NORMALIZATION                    │
+│                                                             │
+│ • Different schemas                                         │
+│ • Date formats                                              │
+│ • Currency formats                                          │
+│ • Amount units                                              │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     AI CATEGORIZATION                       │
+│                                                             │
+│              ┌─────────────────────────┐                    │
+│              │       LLM Agent         │                    │
+│              └────────────┬────────────┘                    │
+│                           │                                 │
+│                    Retrieve context                         │
+│                           │                                 │
+│              ┌────────────▼────────────┐                    │
+│              │  Knowledge Base (RAG)   │                    │
+│              └─────────────────────────┘                    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  RECONCILIATION ENGINE                      │
+│                                                             │
+│  ✓ Amount matching                                          │
+│  ✓ Fee calculation                                          │
+│  ✓ Settlement window matching                               │
+│  ✓ Partial payment detection                                │
+│  ✓ Duplicate detection                                      │
+│                                                             │
+│               🚫 NO LLM USED HERE                           │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                         OUTPUTS                             │
+│                                                             │
+│  📊 Dashboard                                               │
+│  📄 Reconciled Ledger                                       │
+│  🔎 Audit Trail                                             │
+│  ⚠️ Human Review Queue                                      │
+│  📈 Evaluation Metrics                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 🤖 Where AI Is Actually Used
+
+The system does **not** use AI for everything.
+
+AI is only used where human-like interpretation is useful.
+
+### Example
+
+A bank transaction may look like:
+
+```text
+FACEBK *7H2K9
+```
+
+A normal matching algorithm cannot easily understand what this means.
+
+The AI agent:
+
+```text
+Transaction Memo
+        │
+        ▼
+Retrieve Similar Transactions
+        │
+        ▼
+Retrieve Relevant Policy Rule
+        │
+        ▼
+LLM Interpretation
+        │
+        ▼
+Category: Advertising Expense
+Confidence: High
+Policy: kb-0054
+```
+
+This is where **RAG (Retrieval-Augmented Generation)** helps.
+
+The model doesn't have to guess blindly.
+
+It receives relevant context before making a decision.
+
+---
+
+# 🧮 Where AI Is NOT Used
+
+Financial calculations are always deterministic.
+
+```text
+AI ❌
+```
+
+is never responsible for:
+
+* Matching financial amounts
+* Calculating processing fees
+* Calculating net settlements
+* Adding totals
+* Verifying deposits
+* Detecting amount differences
+
+Instead:
+
+```python
+expected_settlement = gross_amount - fees - deductions
+
+if actual_settlement == expected_settlement:
+    status = "MATCHED"
+```
+
+This logic is simple by design.
+
+If the same data enters the system twice:
+
+```text
+Same Input
+    ↓
+Same Code
+    ↓
+Same Output
+```
+
+No randomness.
+
+No hallucinated numbers.
+
+---
+
+# 🔍 The Messiness Is The Point
+
+The system is intentionally designed around messy financial data.
+
+| Problem                     | Example                         | Solution                            |
+| --------------------------- | ------------------------------- | ----------------------------------- |
+| 🔤 Cryptic transaction memo | `FACEBK *7H2K9`                 | AI + RAG categorization             |
+| 💰 Gross vs Net             | ₹10,000 → ₹9,750                | Deterministic fee calculation       |
+| ⏳ Settlement delays         | Payment today, settlement later | Date-window matching                |
+| 🧩 Partial settlement       | Amount received is lower        | Partial / reserve detection         |
+| 🔁 Duplicate transactions   | Same payment twice              | Duplicate detection                 |
+| 📄 Different CSV schemas    | Different column names          | Data normalization                  |
+| 🔢 Unit mismatch            | Amount stored in cents          | Boundary conversion                 |
+| 📅 Date format differences  | `MM/DD/YYYY` vs `YYYY-MM-DD`    | Tolerant parsing                    |
+| ❓ Ambiguous transactions    | `AMZN MKTP US`                  | Knowledge-base rules + review queue |
+
+The system does not assume the data is clean.
+
+Because real financial data rarely is.
+
+---
+
+# 🗂️ Project Structure
+
+```text
+src/
+│
+├── schema.py
+│   └── Defines the financial categories and data contracts
+│
+├── generate_data.py
+│   └── Generates realistic messy financial data + ground truth
+│
+├── knowledge_base.py
+│   └── Builds the accounting / reconciliation knowledge base
+│
+├── policy_rag.py
+│   └── Retrieves relevant rules for AI decisions
+│
+├── rag.py
+│   └── Retrieves similar historical transactions
+│
+├── model.py
+│   └── LLM provider abstraction
+│
+├── categorize.py
+│   └── AI-powered transaction categorization
+│
+├── reconcile.py
+│   └── Deterministic reconciliation engine
+│
+├── evaluate.py
+│   └── Categorization + reconciliation evaluation
+│
+├── evaluate_kb.py
+│   └── Knowledge-base RAG evaluation
+│
+└── app.py
+    └── Interactive Streamlit dashboard
+```
+
+---
+
+# 🚀 Quick Start
+
+Clone the repository and install dependencies:
 
 ```bash
+git clone <your-repository-url>
+
+cd financial-reconciliation-agent
+
 pip install -r requirements.txt
-
-python src/generate_data.py     # 1. synthesize messy financial data + ground truth
-python src/knowledge_base.py    # 2. build the accounting KB (from the SAME source as the data)
-python src/reconcile.py         # 3. deterministic deposit↔payout reconciliation
-python src/evaluate.py          # 4. accuracy + RAG ablation + reconciliation eval
-python src/evaluate_kb.py       # 5. knowledge-base RAG lift (accuracy + citation coverage)
-streamlit run src/app.py        # 6. interactive dashboard
 ```
 
-**No API key needed.** Everything runs out of the box on a deterministic offline
-*mock model* (a keyword baseline + retrieval vote), so a reviewer can clone and
-run it for free. To run the real agent, copy `.env.example` → `.env` and set
-`OPENAI_API_KEY`. The provider lives behind one file (`src/model.py`) and is
-swappable (OpenAI today, Anthropic or other tomorrow).
+Run the complete pipeline:
 
----
+```bash
+# 1. Generate messy financial data
+python src/generate_data.py
 
-## Architecture
+# 2. Build the knowledge base
+python src/knowledge_base.py
 
+# 3. Run deterministic reconciliation
+python src/reconcile.py
+
+# 4. Evaluate categorization + reconciliation
+python src/evaluate.py
+
+# 5. Measure knowledge-base RAG impact
+python src/evaluate_kb.py
+
+# 6. Launch the dashboard
+streamlit run src/app.py
 ```
- Messy inputs               Agent layer (judgment)      Deterministic layer (math)     Outputs
- ────────────               ──────────────────────      ──────────────────────────     ───────
- bank_feed.csv         ┌─►  Categorization agent    ┌─► Reconciliation engine      ┌─►  reconciled deposits
- shopify_payouts.csv   │    (LLM, structured out,   │   (netting, date-window      │    + per-match audit trail
- amazon_payouts.csv    │     confidence, may abstain)│    matching, penny verify)   │    income-statement rollup
- stripe_payouts.csv  ──┤            ▲                │           ▲                  ├─►  human-review queue
- quickbooks_pl.csv     │            │                │           │                  │    (low-confidence /
- payroll_register.csv  │   RAG: accounting-policy KB │     no LLM, fully            │     unmatched only)
-                       └─► + memory of past txns      └──  reproducible            └─►  metrics.json
-                             (cites the rule used)
+
+---
+
+# 🔑 Running Without an API Key
+
+The project works without any paid AI API.
+
+By default, it can run using an offline mock model for testing and reproducibility.
+
+```text
+┌─────────────────────┐
+│   No API Key        │
+│                     │
+│  Offline Mock Model │
+│                     │
+│  ✔ Free             │
+│  ✔ Reproducible     │
+│  ✔ Easy to Test     │
+└─────────────────────┘
 ```
 
-The categorization agent is grounded by **RAG over a 148-passage accounting
-knowledge base** generated from the *same* source as the transactions, so every
-label is backed by a cited policy rule. This lifts accuracy from ~54% to 100% on
-cryptic memos (measured — see below).
+To use a real LLM:
 
-| Module | Role |
-|---|---|
-| `src/schema.py` | The chart of accounts — one contract everything binds to |
-| `src/generate_data.py` | Synthesizes realistic, *deliberately messy* data + held-out ground truth |
-| `src/knowledge_base.py` | Generates a **148-passage accounting KB from the same vendor/category source as the data** (one source of truth — KB can't drift from the transactions) |
-| `src/policy_rag.py` | RAG retrieval over the KB — grounds each categorization in written policy and cites it |
-| `src/model.py` | Provider wrapper (OpenAI / offline mock). The only place the LLM is called |
-| `src/rag.py` | Retrieval memory of past-labelled transactions (isolated, swappable) |
-| `src/categorize.py` | The categorization agent — judgment only, never arithmetic; cites the policy rule it applied |
-| `src/reconcile.py` | Deterministic deposit↔payout reconciliation + audit trail |
-| `src/evaluate.py` | Accuracy, RAG ablation, confidence routing, reconciliation accuracy |
-| `src/evaluate_kb.py` | Knowledge-base RAG lift (no-RAG vs KB-RAG) + citation coverage |
-| `src/app.py` | Streamlit dashboard |
+```bash
+cp .env.example .env
+```
 
----
+Then add:
 
-## The messiness is the point
+```env
+OPENAI_API_KEY=your_api_key_here
+```
 
-The credibility of an AI-on-financial-data system is decided by how it handles
-the mess. The data generator reproduces the failure modes you actually hit, and
-each is handled explicitly:
+The model provider is isolated behind:
 
-| Real-world failure mode | Where it appears | How it's handled |
-|---|---|---|
-| **Cryptic bank memos** (`SQ *8829`, `FACEBK *7H2K9`) | bank feed | LLM categorization + RAG memory of similar past memos |
-| **Gross vs. net** — payout reports gross; bank sees net of fees/refunds | all channels | Engine recomputes net and verifies to the penny |
-| **Settlement lag** — deposit lands days after the payout | all channels | Date-window matching, not exact-date |
-| **Amazon reserve** — deposit short of net; remainder held back | Amazon | Flagged as `partial_reserve` with the exact shortfall, not mismatched |
-| **Schema drift** — every channel file has different columns | all channels | Normalised in one place (`load_payouts`) |
-| **Unit traps** — Stripe amounts in cents | Stripe | Converted at the boundary |
-| **Mixed date formats** — `MM/DD/YYYY` vs `YYYY-MM-DD` | bank feed | Tolerant parsing |
-| **Dirty accounting export** — `$1,234.56` strings, double-spaced / colon'd account names, blank subtotal rows, an "Ask My Accountant" bucket | QuickBooks export | Robust money/string parsing; ambiguous accounts route to review |
-| **Ambiguous rows** (`AMZN MKTP US` — a purchase, vs `AMAZON SETTLEMENT` — a payout) | bank feed | KB edge-case rule disambiguates by memo + direction; truly unresolvable cases abstain (`Needs Review`) |
+```text
+src/model.py
+```
+
+This makes the LLM layer replaceable without changing the reconciliation engine.
 
 ---
 
-## What the evaluation shows
+# 📊 Evaluation
 
-`python src/evaluate.py` scores against ground truth the model never sees
-(the RAG memory is built only from non-test rows — no answer leakage):
+A financial AI system should not only produce answers.
 
-- **Categorization accuracy**, with a **RAG ablation** (memory on vs. off) so the
-  retrieval design is *proven* to add value, not just asserted.
-- **Confidence-routed human-in-the-loop**: at a confidence threshold, how much
-  can we auto-post, and how accurate is that auto-posted slice? Coverage vs.
-  precision is the real production dial.
-- **Reconciliation accuracy**: did the engine match each deposit to the correct
-  payout? (Deterministic, so this is a correctness check, not a probability.)
+It should prove whether those answers are correct.
 
-`python src/evaluate_kb.py` additionally measures the **knowledge-base RAG lift** —
-categorization with the retrieved accounting policy vs. without — plus **citation
-coverage** (how often a decision is backed by a cited rule).
+The evaluation pipeline measures:
 
-Real results (gpt-4o-mini, 69 held-out transactions):
+### 🧠 Categorization Accuracy
 
-| Metric | Result |
-|---|---|
-| Categorization accuracy — **no RAG** | 53.6% |
-| Categorization accuracy — **KB RAG** | **100%** (**+46.4%** from retrieval) |
-| Citation coverage / accuracy-when-cited | **100% / 100%** |
-| Reconciliation match accuracy | **100%** (deterministic) |
+```text
+Did the system assign the correct category?
+```
 
-The +46% lift is the headline: on cryptic memos (`FACEBK *7H2K9`, `SHENZHEN MFG CO`)
-the LLM is near a coin-flip alone, but reliable once it can retrieve the written
-rule — and every decision is auditable ("Advertising, per `kb-0054`"). See
-[`CASE_STUDY.md`](CASE_STUDY.md) for the full write-up.
+### 🔍 RAG Impact
 
-> **Honest caveat:** the KB is drawn from the same vendor distribution as the
-> transactions, so retrieval often finds a near-exact rule → near-perfect accuracy.
-> On genuinely novel vendors it would be lower; the feedback loop (below) is how
-> that gap closes over time.
+```text
+How much does retrieval improve the AI's decisions?
+```
+
+### 🎯 Confidence-Based Automation
+
+```text
+High confidence  → Auto-process
+Low confidence   → Human review
+```
+
+### 🧮 Reconciliation Accuracy
+
+```text
+Did the deterministic engine match
+the correct transaction to the correct settlement?
+```
 
 ---
 
-## How the RAG layer scales further
+# 📈 Experimental Results
 
-The RAG layer is already built, used, and measured: `policy_rag.py` retrieves
-accounting-policy passages from the knowledge base, grounds every categorization,
-and delivers the +46.4% accuracy lift shown above. Retrieval is kept behind a
-small `build` / `retrieve` interface so it can be strengthened for larger
-deployments without touching the agent or the eval. The path from here:
+Using held-out transactions:
 
-1. **Retrieval-quality evaluation** — track recall@k and MRR so retrieval is
-   tuned against a metric. (This is already implemented in the companion
-   document-intelligence project and applies directly here.)
-2. **Richer representation** — embed the normalised memo together with amount band
-   and channel rather than raw text, optionally with a finance-tuned embedding.
-3. **Hybrid retrieval** — combine lexical (BM25) and vector search, since memos
-   are short and dominated by exact tokens such as vendor codes. (Also already
-   built and measured in the document-intelligence project.)
-4. **Reranking** — a cross-encoder over the top candidates for higher precision.
-5. **Approximate-nearest-neighbour index and caching** — FAISS or pgvector with a
-   cache keyed on the normalised memo, for latency and cost at scale.
-6. **Feedback loop** — every human correction in the review queue becomes a new
-   knowledge-base entry, so accuracy compounds over time.
+| Metric                           |     Result |
+| -------------------------------- | ---------: |
+| Categorization Accuracy — No RAG |      53.6% |
+| Categorization Accuracy — KB RAG |   **100%** |
+| Improvement from Retrieval       | **+46.4%** |
+| Citation Coverage                |   **100%** |
+| Accuracy When Cited              |   **100%** |
+| Reconciliation Match Accuracy    |   **100%** |
+
+### The key result
+
+```text
+LLM alone
+█████████████████████░░░░░░░░░░░░░ 53.6%
+
+LLM + Knowledge Retrieval
+████████████████████████████████████ 100%
+```
+
+The important lesson is not that:
+
+> **"AI is magically 100% accurate."**
+
+The important lesson is:
+
+> **Giving the model relevant domain knowledge can dramatically improve decisions on ambiguous financial data.**
+
+---
+
+# 👀 Human-in-the-Loop Review
+
+The system does not force AI to make a decision when the evidence is weak.
+
+```text
+                    Transaction
+                         │
+                         ▼
+                    AI Decision
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+        High Confidence       Low Confidence
+              │                     │
+              ▼                     ▼
+         Auto Process          Needs Review
+```
+
+This creates a practical production model:
+
+> **Automate the easy cases. Escalate the uncertain ones.**
+
+Human corrections can later be added back into the knowledge base to improve future decisions.
+
+---
+
+# 🔮 Scaling the RAG Layer
+
+The current system keeps retrieval modular.
+
+Future improvements can include:
+
+### 1️⃣ Hybrid Search
+
+Combine:
+
+```text
+BM25 Keyword Search
+        +
+Vector Similarity Search
+```
+
+This works especially well for short financial descriptions containing vendor codes.
+
+---
+
+### 2️⃣ Better Transaction Embeddings
+
+Instead of embedding only:
+
+```text
+FACEBK *7H2K9
+```
+
+embed structured context:
+
+```text
+Merchant: FACEBOOK
+Amount Band: ₹5,000–₹10,000
+Channel: Bank
+Direction: Debit
+Memo: FACEBK *7H2K9
+```
+
+---
+
+### 3️⃣ Reranking
+
+Retrieve multiple candidate rules:
+
+```text
+Top 10 Results
+      ↓
+Cross-Encoder Reranker
+      ↓
+Best 3 Rules
+      ↓
+LLM Decision
+```
+
+---
+
+### 4️⃣ Production-Scale Retrieval
+
+Potential options:
+
+```text
+FAISS
+pgvector
+Caching Layer
+Hybrid Search
+```
+
+The goal is to improve:
+
+* ⚡ Latency
+* 💰 Cost
+* 🎯 Retrieval quality
+* 📈 Accuracy
+
+without changing the main agent logic.
+
+---
+
+# 🛡️ Design Principles
+
+This project follows a few simple principles.
+
+### 1. AI should handle ambiguity
+
+```text
+"What does this transaction mean?"
+```
+
+### 2. Code should handle arithmetic
+
+```text
+"Do these numbers match?"
+```
+
+### 3. Every important decision should be traceable
+
+```text
+Decision
+   ↓
+Retrieved Rule
+   ↓
+Model Output
+   ↓
+Deterministic Verification
+```
+
+### 4. Uncertainty should be visible
+
+```text
+High Confidence → Process
+
+Low Confidence  → Review
+```
+
+### 5. Evaluation is part of the system
+
+If you cannot measure whether the system works, you cannot safely automate financial decisions.
+
+---
+
+# 🛠️ Tech Stack
+
+| Layer             | Technology                            |
+| ----------------- | ------------------------------------- |
+| 🐍 Language       | Python                                |
+| 🤖 AI             | LLM via provider abstraction          |
+| 🧠 Knowledge      | RAG                                   |
+| 🔎 Retrieval      | Policy retrieval + transaction memory |
+| 🧮 Reconciliation | Deterministic Python                  |
+| 📊 Data           | CSV                                   |
+| 🖥️ Dashboard     | Streamlit                             |
+| 📈 Evaluation     | Custom evaluation pipeline            |
+| 🔐 Configuration  | `.env`                                |
+
+---
+
+# ⚠️ Important Caveat
+
+The current knowledge base is generated from the same domain distribution as the evaluation data.
+
+That means retrieval can often find a very similar or near-exact rule.
+
+This is useful for demonstrating and measuring the architecture, but it does **not** mean the system will automatically achieve the same accuracy on completely new merchants, vendors, or financial ecosystems.
+
+A production system would require:
+
+* More diverse real-world data
+* Strict train/test separation
+* Retrieval quality metrics
+* Continuous evaluation
+* Human review for uncertain transactions
+
+The goal of this project is to demonstrate the **architecture, evaluation methodology, and design principles** for building trustworthy AI-assisted financial systems.
+
+---
+
+<div align="center">
+
+# 💡 Final Principle
+
+### **Use AI to understand the mess.**
+
+### **Use deterministic code to protect the money.**
+
+<br/>
+
+**If a transaction is ambiguous, ask AI.**
+**If a number must be correct, calculate it.**
+
+---
+
+Built as a case-study project exploring **AI + RAG + deterministic systems for financial reconciliation**.
+
+</div>
