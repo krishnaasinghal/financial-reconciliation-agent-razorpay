@@ -69,6 +69,22 @@ with tabs[1]:
     st.download_button("Export exceptions for finance team", exceptions.to_csv(index=False), "settlement_exceptions.csv", "text/csv")
     view = rec_df[rec_df["status"].isin(selected)]
     st.dataframe(view[["payment_id", "settlement_id", "bank_transaction_id", "expected_amount", "actual_amount", "difference", "status", "anomaly_type", "reason"]], use_container_width=True, hide_index=True)
+    st.subheader("Ask the agent")
+    payment_query = st.text_input("Enter a payment ID", placeholder="pay_001002")
+    if payment_query:
+        matches = rec_df[rec_df["payment_id"].astype(str).str.lower() == payment_query.strip().lower()]
+        if matches.empty:
+            st.warning(f"I could not find payment `{payment_query.strip()}` in this reconciliation batch.")
+        else:
+            record = matches.iloc[0]
+            expected = f"INR {record['expected_amount']:,.2f}" if pd.notna(record["expected_amount"]) else "not available"
+            actual = f"INR {record['actual_amount']:,.2f}" if pd.notna(record["actual_amount"]) else "not available"
+            st.info(
+                f"Payment `{record['payment_id']}` is **{record['status']}**. "
+                f"Expected amount: **{expected}**. Actual amount: **{actual}**. "
+                f"Difference: **INR {record['difference']:,.2f}**. "
+                f"{record['reason']}"
+            )
 with tabs[2]:
     anomalies = [row for row in results if row.anomaly_type]
     for row in anomalies[:50]:
