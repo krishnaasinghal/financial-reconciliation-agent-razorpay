@@ -32,13 +32,15 @@ st.markdown("""
         [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 600; }
         [data-testid="stMetricValue"] { color: var(--ink); font-family: 'Space Grotesk', sans-serif; }
         div[data-baseweb="tab-list"] { gap: 0.35rem; border-bottom: 1px solid var(--line); }
-        button[data-baseweb="tab"] { color: var(--muted); font-weight: 600; }
-        button[data-baseweb="tab"][aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"] { color: #41515c !important; font-weight: 700; opacity: 1 !important; background: transparent; }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"] p { color: inherit !important; }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"][aria-selected="true"] { color: #087f8c !important; border-bottom: 3px solid #087f8c; }
         .section-kicker { color: var(--teal); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1rem; }
         .stButton > button, .stDownloadButton > button { border-radius: 8px; border: 1px solid var(--teal); color: white; background: var(--teal); font-weight: 700; }
         .stButton > button:hover, .stDownloadButton > button:hover { border-color: #05616b; background: #05616b; color: white; }
         [data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
         div[data-testid="stExpander"] { border-color: var(--line); border-radius: 10px; background: #ffffff; }
+        div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary p { color: #17212b !important; font-weight: 700; }
 </style>
 <div class="hero">
     <div>
