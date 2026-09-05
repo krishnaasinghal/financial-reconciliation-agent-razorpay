@@ -23,7 +23,11 @@ import json
 import os
 import re
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # Optional for the offline deterministic mode.
+    def load_dotenv() -> None:
+        return None
 
 load_dotenv()
 

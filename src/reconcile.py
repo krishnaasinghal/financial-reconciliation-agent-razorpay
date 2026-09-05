@@ -1,184 +1,94 @@
-"""Deterministic reconciliation engine: the *arithmetic* half of the system.
-
-Matches each bank deposit to the channel payout that produced it, verifies the
-money nets out to the penny, and emits an audit trail. This is plain Python:
-no LLM, no probabilities, fully reproducible. That separation is the whole point
-of the project — a mis-categorization is a labelling error the eval can catch,
-but a hallucinated *number* silently corrupts the books, so numbers never go
-near the model.
-
-Real-world cases handled explicitly:
-  - gross-vs-net: a payout reports gross sales; the bank only sees net of fees
-    and refunds, which we recompute and verify.
-  - settlement lag: the deposit lands days after the payout is initiated, so we
-    match within a date window, not on an exact date.
-  - Amazon reserve: the deposit is sometimes short of net (a rolling reserve is
-    held back). We flag these as partial rather than silently mismatching.
-  - schema drift: each channel file has different column names and units
-    (Stripe is in cents); normalisation lives in one place.
-"""
-
+"""Deterministic multi-stage payment settlement reconciliation engine."""
 from __future__ import annotations
-
 import csv
-import os
-from dataclasses import dataclass, field
+from collections import defaultdict
 from datetime import date, datetime
+from pathlib import Path
+from schema import ReconciliationResult
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-
-AMOUNT_TOLERANCE = 0.50   # dollars; covers rounding across sources
-WINDOW_DAYS = 10          # max settlement lag we'll consider a candidate
-
-
-@dataclass
-class NormPayout:
-    payout_id: str
-    channel: str
-    date: date
-    gross: float
-    fees: float
-    refunds: float
-
-    @property
-    def net(self) -> float:
-        return round(self.gross - self.fees - self.refunds, 2)
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+TOLERANCE = 0.01
 
 
-@dataclass
-class Match:
-    txn_id: str
-    deposit_amount: float
-    payout_id: str | None
-    expected_net: float | None
-    discrepancy: float | None  # deposit - expected_net
-    status: str                # matched | partial_reserve | unmatched
-    note: str = ""
+def _date(value: str) -> date:
+    return datetime.strptime(value[:10], "%Y-%m-%d").date()
 
 
-def _parse_date(s: str) -> date:
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except ValueError:
+def _read(name: str) -> list[dict]:
+    with (DATA_DIR / name).open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def reconcile() -> list[ReconciliationResult]:
+    orders = {row["order_id"]: row for row in _read("merchant_orders.csv")}
+    payments, settlements, credits = _read("payments.csv"), _read("settlements.csv"), _read("bank_credits.csv")
+    settlements_by_payment, credits_by_settlement = defaultdict(list), defaultdict(list)
+    for row in settlements:
+        settlements_by_payment[row["payment_id"]].append(row)
+    for row in credits:
+        credits_by_settlement[row["settlement_id"]].append(row)
+    results, referenced = [], set()
+    for payment in payments:
+        payment_id = payment["payment_id"]
+        order = orders.get(payment["order_id"])
+        order_ok = order is not None and abs(float(payment["amount"]) - float(order["order_amount"])) <= TOLERANCE
+        payment_settlements = settlements_by_payment.get(payment_id, [])
+        if not order_ok:
+            expected = float(order["order_amount"]) if order else None
+            actual = float(payment["amount"])
+            results.append(ReconciliationResult(payment_id, None, None, expected, actual, round(actual - expected, 2) if expected is not None else None, "MISMATCHED", "AMOUNT_MISMATCH", 1.0, "Payment amount does not match the merchant order."))
             continue
-    raise ValueError(f"unparseable date: {s!r}")
-
-
-def _money(s: str) -> float:
-    """Parse '$1,234.56' / '-$1,234.56' / '1,234.56' / '123' to float."""
-    s = s.strip().replace("$", "").replace(",", "")
-    return float(s) if s else 0.0
-
-
-def load_payouts() -> list[NormPayout]:
-    """Normalise all three channel files into one comparable shape."""
-    out: list[NormPayout] = []
-
-    sp = os.path.join(DATA_DIR, "shopify_payouts.csv")
-    with open(sp, newline="") as f:
-        for r in csv.DictReader(f):
-            out.append(NormPayout(r["payout_id"], "Shopify", _parse_date(r["payout_date"]),
-                                  _money(r["gross_sales"]), _money(r["processing_fees"]), _money(r["refunds"])))
-
-    ap = os.path.join(DATA_DIR, "amazon_payouts.csv")
-    with open(ap, newline="") as f:
-        for r in csv.DictReader(f):
-            out.append(NormPayout(r["settlement_id"], "Amazon", _parse_date(r["date_initiated"]),
-                                  _money(r["product_sales"]), _money(r["selling_fees"]), _money(r["refunded_amount"])))
-
-    tp = os.path.join(DATA_DIR, "stripe_payouts.csv")
-    with open(tp, newline="") as f:
-        for r in csv.DictReader(f):
-            # Stripe is in cents -> normalise to dollars in one place.
-            out.append(NormPayout(r["id"], "Stripe", _parse_date(r["arrival_date"]),
-                                  _money(r["amount_cents"]) / 100, _money(r["fee_cents"]) / 100,
-                                  _money(r["refund_cents"]) / 100))
-    return out
-
-
-# Map a bank-memo fragment to the payout channel it belongs to.
-_MEMO_CHANNEL = [
-    ("SHOPIFY", "Shopify"),
-    ("STRIPE", "Stripe"),
-    ("AMAZON", "Amazon"),
-]
-
-
-def _channel_for(description: str) -> str | None:
-    up = description.upper()
-    for frag, channel in _MEMO_CHANNEL:
-        if frag in up:
-            return channel
-    return None
-
-
-def reconcile() -> list[Match]:
-    payouts = load_payouts()
-    by_channel: dict[str, list[NormPayout]] = {}
-    for p in payouts:
-        by_channel.setdefault(p.channel, []).append(p)
-
-    matches: list[Match] = []
-    claimed: set[str] = set()
-
-    with open(os.path.join(DATA_DIR, "bank_feed.csv"), newline="") as f:
-        deposits = [r for r in csv.DictReader(f) if _money(r["amount"]) > 0]
-
-    for r in deposits:
-        channel = _channel_for(r["description"])
-        if channel is None:
-            continue  # not a channel deposit (e.g. a transfer in)
-        amount = _money(r["amount"])
-        ddate = _parse_date(r["date"])
-        candidates = [
-            p for p in by_channel.get(channel, [])
-            if p.payout_id not in claimed and 0 <= (ddate - p.date).days <= WINDOW_DAYS
-        ]
-        # Prefer an exact-net match; fall back to the nearest under-payment
-        # (reserve) candidate. All comparisons are deterministic arithmetic.
-        exact = [p for p in candidates if abs(p.net - amount) <= AMOUNT_TOLERANCE]
-        if exact:
-            best = min(exact, key=lambda p: abs(p.net - amount))
-            claimed.add(best.payout_id)
-            matches.append(Match(r["txn_id"], amount, best.payout_id, best.net,
-                                 round(amount - best.net, 2), "matched"))
+        if not payment_settlements:
+            results.append(ReconciliationResult(payment_id, None, None, None, None, None, "PENDING", "MISSING_SETTLEMENT", 1.0, "Payment is captured but no settlement exists."))
             continue
+        for settlement in payment_settlements:
+            gross, fee, tax = float(settlement["gross_amount"]), float(settlement["gateway_fee"]), float(settlement["tax_on_fee"])
+            expected, declared = round(gross - fee - tax, 2), float(settlement["net_amount"])
+            settlement_id, matching_credits = settlement["settlement_id"], credits_by_settlement.get(settlement["settlement_id"], [])
+            gross_error = abs(gross - float(payment["amount"])) > TOLERANCE
+            if not matching_credits:
+                results.append(ReconciliationResult(payment_id, settlement_id, None, expected, None, None, "PENDING", "MISSING_SETTLEMENT", 1.0, "Settlement exists but no bank credit was found."))
+                continue
+            policy_fee = round(float(payment["amount"]) * 0.02, 2)
+            policy_tax = round(policy_fee * 0.18, 2)
+            fee_error = abs(expected - declared) > TOLERANCE or abs(fee - policy_fee) > TOLERANCE or abs(tax - policy_tax) > TOLERANCE
+            for index, credit in enumerate(matching_credits):
+                actual, credit_id = float(credit["credited_amount"]), credit["bank_transaction_id"]
+                difference = round(actual - expected, 2)
+                referenced.add(credit_id)
+                if index > 0:
+                    status, anomaly, reason = "DUPLICATE", "DUPLICATE_BANK_CREDIT", "Multiple bank credits reference the same settlement."
+                elif gross_error:
+                    status, anomaly, reason = "MISMATCHED", "AMOUNT_MISMATCH", f"Settlement gross INR {gross:,.2f} differs from captured payment INR {float(payment['amount']):,.2f}."
+                elif fee_error:
+                    status, anomaly, reason = "MISMATCHED", "FEE_MISMATCH", f"Declared net INR {declared:,.2f} differs from calculated net INR {expected:,.2f}."
+                elif abs(difference) <= TOLERANCE:
+                    lag = (_date(settlement["settlement_date"]) - _date(payment["created_at"])).days
+                    if lag > 3:
+                        status, anomaly, reason = "MISMATCHED", "DELAYED_SETTLEMENT", f"Settlement arrived after {lag} days."
+                    else:
+                        status, anomaly, reason = "MATCHED", None, "Payment, settlement net calculation, and bank credit agree within tolerance."
+                elif actual < expected:
+                    status, anomaly, reason = "MISMATCHED", "PARTIAL_SETTLEMENT", f"Bank credit is short by INR {abs(difference):,.2f}."
+                else:
+                    status, anomaly, reason = "MISMATCHED", "AMOUNT_MISMATCH", f"Bank credit differs from expected net by INR {difference:,.2f}."
+                results.append(ReconciliationResult(payment_id, settlement_id, credit_id, expected, actual, difference, status, anomaly, 1.0, reason))
+    for credit in credits:
+        if credit["bank_transaction_id"] not in referenced:
+            actual = float(credit["credited_amount"])
+            results.append(ReconciliationResult(None, credit["settlement_id"], credit["bank_transaction_id"], None, actual, actual, "UNMATCHED", "UNMATCHED_BANK_CREDIT", 1.0, "Bank credit has no matching payment settlement."))
+    return results
 
-        shortfalls = [p for p in candidates if p.net > amount]
-        if shortfalls:
-            best = min(shortfalls, key=lambda p: p.net - amount)
-            claimed.add(best.payout_id)
-            disc = round(amount - best.net, 2)
-            matches.append(Match(r["txn_id"], amount, best.payout_id, best.net, disc,
-                                 "partial_reserve",
-                                 note=f"deposit short by {abs(disc):.2f}; likely reserve/hold"))
-            continue
 
-        matches.append(Match(r["txn_id"], amount, None, None, None, "unmatched",
-                             note="no payout within window/amount tolerance"))
-    return matches
-
-
-def summarize(matches: list[Match]) -> dict:
-    total = len(matches)
-    by_status: dict[str, int] = {}
-    for m in matches:
-        by_status[m.status] = by_status.get(m.status, 0) + 1
-    reserve_held = round(sum(-m.discrepancy for m in matches
-                             if m.status == "partial_reserve" and m.discrepancy), 2)
-    return {
-        "deposits_examined": total,
-        "by_status": by_status,
-        "auto_matched_pct": round(100 * by_status.get("matched", 0) / total, 1) if total else 0.0,
-        "reserve_or_short_held": reserve_held,
-    }
+def summarize(results: list[ReconciliationResult]) -> dict:
+    counts, anomalies = defaultdict(int), defaultdict(int)
+    for result in results:
+        counts[result.status] += 1
+        if result.anomaly_type:
+            anomalies[result.anomaly_type] += 1
+    return {"total_results": len(results), "by_status": dict(counts), "by_anomaly": dict(anomalies), "matched_transactions": counts["MATCHED"]}
 
 
 if __name__ == "__main__":
     import json
-    ms = reconcile()
-    print(json.dumps(summarize(ms), indent=2))
-    for m in ms[:8]:
-        print(f"  {m.txn_id} {m.deposit_amount:>10.2f}  {m.status:<16} "
-              f"payout={m.payout_id} disc={m.discrepancy}")
+    print(json.dumps(summarize(reconcile()), indent=2))
